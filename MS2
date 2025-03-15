@@ -1,0 +1,353 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Main.java to edit this template
+ */
+package ms2payrollsystem;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ *
+ * @author Andrei
+ */
+// Abstract class for Person
+abstract class PersonClass {
+    private String firstName;
+    private String lastName;
+    private String address;
+
+    // Constructor
+    public PersonClass(String firstName, String lastName, String address) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.address = address;
+    }
+
+    // Encapsulation Getter and Setter methods
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    // Display method
+    public void displayInfo() {
+        System.out.println("First Name: " + firstName);
+        System.out.println("Last Name: " + lastName);
+        System.out.println("Address: " + address);
+    }
+
+    // Abstract method for requesting leave
+    public abstract void requestLeave();
+}
+
+// Class to handle leave management
+class LeaveManagement {
+    private int annualLeaveBalance;
+    private int sickLeaveBalance;
+
+    // Constructor
+    public LeaveManagement(int annualLeaveBalance, int sickLeaveBalance) {
+        this.annualLeaveBalance = annualLeaveBalance;
+        this.sickLeaveBalance = sickLeaveBalance;
+    }
+
+    // Encapsulation - Getter and Setter methods
+    public int getAnnualLeaveBalance() {
+        return annualLeaveBalance;
+    }
+
+    public int getSickLeaveBalance() {
+        return sickLeaveBalance;
+    }
+
+    public void setAnnualLeaveBalance(int annualLeaveBalance) {
+        this.annualLeaveBalance = annualLeaveBalance;
+    }
+
+    public void setSickLeaveBalance(int sickLeaveBalance) {
+        this.sickLeaveBalance = sickLeaveBalance;
+    }
+
+    // Request leave method with audit logging
+    public boolean requestLeave(String leaveType, int days, String personName) {
+        boolean leaveApproved = false;
+        
+        if (leaveType.equalsIgnoreCase("Annual") && days <= annualLeaveBalance) {
+            annualLeaveBalance -= days;
+            leaveApproved = true;
+        } else if (leaveType.equalsIgnoreCase("Sick") && days <= sickLeaveBalance) {
+            sickLeaveBalance -= days;
+            leaveApproved = true;
+        }
+
+        // Log the leave request to the audit system
+        LeaveAudit.logLeaveRequest(personName, leaveType + " Leave", days, leaveApproved);
+        return leaveApproved;
+    }
+}
+
+// Leave Audit class to log leave requests
+class LeaveAudit {
+    // List to hold the audit logs
+    private static List<String> auditLogs = new ArrayList<>();
+
+    // Method to log the leave request
+    public static void logLeaveRequest(String personName, String leaveType, int daysRequested, boolean leaveApproved) {
+        String status = leaveApproved ? "Approved" : "Denied";
+        String logEntry = personName + " - Leave Request - Type: " + leaveType + " | Days: " + daysRequested + " | Status: " + status;
+        auditLogs.add(logEntry);
+    }
+
+    // Method to print all leave request audit logs
+    public static void generateAuditReport() {
+        System.out.println("\n==== Leave Audit Report ====");
+        if (auditLogs.isEmpty()) {
+            System.out.println("No leave requests have been logged yet.");
+        } else {
+            for (String log : auditLogs) {
+                System.out.println(log);
+            }
+        }
+    }
+}
+
+// Employee class (inherits from PersonClass)
+class Employee extends PersonClass {
+    private String employeeID;
+    private LeaveManagement leaveManagement;
+
+    // Constructor
+    public Employee(String firstName, String lastName, String address, String employeeID, int annualLeave, int sickLeave) {
+        super(firstName, lastName, address);
+        this.employeeID = employeeID;
+        this.leaveManagement = new LeaveManagement(annualLeave, sickLeave);
+    }
+
+    // Encapsulation - Getter and Setter methods
+    public String getEmployeeID() {
+        return employeeID;
+    }
+
+    public LeaveManagement getLeaveManagement() {
+        return leaveManagement;
+    }
+
+    public void setEmployeeID(String employeeID) {
+        this.employeeID = employeeID;
+    }
+
+    // Polymorphism - Overriding requestLeave for Employee
+    @Override
+    public void requestLeave() {
+        System.out.println(getFirstName() + " " + getLastName() + " (Employee) is requesting leave.");
+        if (leaveManagement.requestLeave("Annual", 5, getFirstName() + " " + getLastName())) {
+            System.out.println("Leave granted for 5 days of annual leave.");
+        } else {
+            System.out.println("Leave request denied due to insufficient annual leave balance.");
+        }
+    }
+
+    @Override
+    public void displayInfo() {
+        super.displayInfo();
+        System.out.println("Employee ID: " + employeeID);
+    }
+}
+
+// Manager class (inherits from PersonClass)
+class Manager extends PersonClass {
+    private String department;
+    private LeaveManagement leaveManagement;
+
+    // Constructor
+    public Manager(String firstName, String lastName, String address, String department, int annualLeave, int sickLeave) {
+        super(firstName, lastName, address);
+        this.department = department;
+        this.leaveManagement = new LeaveManagement(annualLeave, sickLeave);
+    }
+
+    // Encapsulation - Getter and Setter methods
+    public String getDepartment() {
+        return department;
+    }
+
+    public LeaveManagement getLeaveManagement() {
+        return leaveManagement;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    // Polymorphism - Overriding requestLeave for Manager
+    @Override
+    public void requestLeave() {
+        System.out.println(getFirstName() + " " + getLastName() + " (Manager) is requesting leave.");
+        if (leaveManagement.requestLeave("Sick", 3, getFirstName() + " " + getLastName())) {
+            System.out.println("Leave granted for 3 days of sick leave.");
+        } else {
+            System.out.println("Leave request denied due to insufficient sick leave balance.");
+        }
+    }
+
+    @Override
+    public void displayInfo() {
+        super.displayInfo();
+        System.out.println("Department: " + department);
+    }
+}
+
+// HR Manager class (inherits from PersonClass)
+class HRManager extends PersonClass {
+    private String department;
+
+    // Constructor
+    public HRManager(String firstName, String lastName, String address, String department) {
+        super(firstName, lastName, address);
+        this.department = department;
+    }
+
+    // Encapsulation - Getter and Setter methods
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    // Overriding requestLeave for HR Manager (they approve leave)
+    @Override
+    public void requestLeave() {
+        System.out.println(getFirstName() + " " + getLastName() + " (HR Manager) is reviewing the leave request.");
+        // Here, HR Manager can approve leave requests, perform additional tasks, or report.
+        System.out.println("Leave request approved.");
+    }
+
+    @Override
+    public void displayInfo() {
+        super.displayInfo();
+        System.out.println("Department: " + department);
+    }
+}
+
+// Payroll class
+class Payroll {
+    public static void calculatePayroll(Employee employee) {
+        double baseSalary = 50000; // Base salary for employees
+        double deductions = 0;
+        
+        // Assume leave reduces salary
+        deductions = employee.getLeaveManagement().getAnnualLeaveBalance() * 50; // Example deduction
+        double finalSalary = baseSalary - deductions;
+
+        System.out.println("Payroll Report for " + employee.getFirstName() + " " + employee.getLastName());
+        System.out.println("Base Salary: $50,000");
+        System.out.println("Deductions: $" + deductions);
+        System.out.println("Final Salary: $" + finalSalary);
+    }
+}
+
+// Time Logging class
+class TimeLogging {
+    public static void logTime(Employee employee, int hoursWorked) {
+        System.out.println(employee.getFirstName() + " " + employee.getLastName() + " worked " + hoursWorked + " hours this week.");
+    }
+}
+
+// Admin class (inherits from PersonClass)
+class Admin extends PersonClass {
+
+    public Admin(String firstName, String lastName, String address) {
+        super(firstName, lastName, address);
+    }
+
+    @Override
+    public void requestLeave() {
+        System.out.println("Admin has full control over the system but doesn't request leave.");
+    }
+
+    public void manageEmployee(Employee employee) {
+        System.out.println("Admin is managing Employee: " + employee.getFirstName() + " " + employee.getLastName());
+    }
+
+    public void manageHRManager(HRManager hrManager) {
+        System.out.println("Admin is managing HR Manager: " + hrManager.getFirstName() + " " + hrManager.getLastName());
+    }
+
+    @Override
+    public void displayInfo() {
+        super.displayInfo();
+        System.out.println("Admin has full control over the system.");
+    }
+}
+
+// Main Class
+public class Ms2payrollsystem {
+    public static void main(String[] args) {
+        // Creating Employee, Manager, HR Manager, and Admin objects
+        PersonClass person1 = new Employee("Manuel", "Garcia", "Valero Carpark Building, Makati", "EMP001", 20, 10);
+        PersonClass person2 = new Manager("Antonio", "Lim", "San Antonio, Cavite", "IT Department", 30, 15);
+        PersonClass person3 = new HRManager("Lucia", "Dee", "Makati, Philippines", "HR");
+        PersonClass person4 = new Admin("Mark", "Smith", "Makati, Philippines");
+
+        // Display Employee details
+        System.out.println("\n==== Employee Details ====");
+        person1.displayInfo();
+        person1.requestLeave();
+        System.out.println();
+
+        // Display Manager details
+        System.out.println("==== Manager Details ====");
+        person2.displayInfo();
+        person2.requestLeave();
+        System.out.println();
+
+        // HR Manager reviewing the leave request
+        System.out.println("==== HR Manager Details ====");
+        person3.displayInfo();
+        person3.requestLeave();
+        System.out.println();
+
+        // Admin managing employee and HR
+        System.out.println("==== Admin Details ====");
+        person4.displayInfo();
+        ((Admin) person4).manageEmployee((Employee) person1);
+        ((Admin) person4).manageHRManager((HRManager) person3);
+        System.out.println();
+
+        // Payroll and Time Logging
+        System.out.println("==== Payroll Report ====");
+        Payroll.calculatePayroll((Employee) person1);
+        System.out.println();
+
+        System.out.println("==== Time Logging ====");
+        TimeLogging.logTime((Employee) person1, 40); // Assume 40 hours worked
+        System.out.println();
+
+        // Leave Audit and Report
+        LeaveAudit.generateAuditReport(); // Generate the leave audit report
+    }
+}
+
+
