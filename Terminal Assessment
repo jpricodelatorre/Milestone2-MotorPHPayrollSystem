@@ -1,0 +1,512 @@
+package ms2payrollsystem;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * =====================
+ *   MODEL CLASSES
+ * =====================
+ */
+
+// Abstract class for Person
+abstract class PersonClass {
+    private String firstName;
+    private String lastName;
+    private String address;
+
+    public PersonClass(String firstName, String lastName, String address) {
+        this.firstName = firstName;
+        this.lastName  = lastName;
+        this.address   = address;
+    }
+
+    public String getFirstName() { return firstName; }
+    public String getLastName()  { return lastName; }
+    public String getAddress()   { return address; }
+
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public void setLastName(String lastName)   { this.lastName = lastName; }
+    public void setAddress(String address)       { this.address = address; }
+
+    /**
+     * This method appends the person's info into the provided StringBuilder.
+     */
+    public void displayInfo(StringBuilder sb) {
+        sb.append("First Name: " + firstName + "\n");
+        sb.append("Last Name: "  + lastName  + "\n");
+        sb.append("Address: "    + address   + "\n");
+    }
+
+    /**
+     * NEW: No-argument displayInfo() method that prints the info to System.out.
+     * This is used by the console version to avoid the NoSuchMethodError.
+     */
+    public void displayInfo() {
+        StringBuilder sb = new StringBuilder();
+        displayInfo(sb);
+        System.out.println(sb.toString());
+    }
+
+    // Abstract method for requesting leave; returns a result string.
+    public abstract String requestLeave();
+}
+
+// Class to handle leave management
+class LeaveManagement {
+    private int annualLeaveBalance;
+    private int sickLeaveBalance;
+
+    public LeaveManagement(int annualLeaveBalance, int sickLeaveBalance) {
+        this.annualLeaveBalance = annualLeaveBalance;
+        this.sickLeaveBalance   = sickLeaveBalance;
+    }
+
+    public int getAnnualLeaveBalance() { return annualLeaveBalance; }
+    public int getSickLeaveBalance()   { return sickLeaveBalance; }
+
+    public void setAnnualLeaveBalance(int annualLeaveBalance) { this.annualLeaveBalance = annualLeaveBalance; }
+    public void setSickLeaveBalance(int sickLeaveBalance)     { this.sickLeaveBalance = sickLeaveBalance; }
+
+    // Process leave request and log it.
+    public boolean requestLeave(String leaveType, int days, String personName) {
+        boolean leaveApproved = false;
+        if (leaveType.equalsIgnoreCase("Annual") && days <= annualLeaveBalance) {
+            annualLeaveBalance -= days;
+            leaveApproved = true;
+        } else if (leaveType.equalsIgnoreCase("Sick") && days <= sickLeaveBalance) {
+            sickLeaveBalance -= days;
+            leaveApproved = true;
+        }
+        LeaveAudit.logLeaveRequest(personName, leaveType + " Leave", days, leaveApproved);
+        return leaveApproved;
+    }
+}
+
+// Class for logging leave requests
+class LeaveAudit {
+    private static List<String> auditLogs = new ArrayList<>();
+
+    public static void logLeaveRequest(String personName, String leaveType, int daysRequested, boolean leaveApproved) {
+        String status = leaveApproved ? "Approved" : "Denied";
+        String logEntry = personName + " - Leave Request - Type: " + leaveType +
+                          " | Days: " + daysRequested + " | Status: " + status;
+        auditLogs.add(logEntry);
+    }
+
+    // Returns the full audit report as a string.
+    public static String generateAuditReport() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("==== Leave Audit Report ====\n");
+        if (auditLogs.isEmpty()) {
+            sb.append("No leave requests have been logged yet.\n");
+        } else {
+            for (String log : auditLogs) {
+                sb.append(log).append("\n");
+            }
+        }
+        return sb.toString();
+    }
+}
+
+// Employee class extending PersonClass
+class Employee extends PersonClass {
+    private String employeeID;
+    private LeaveManagement leaveManagement;
+
+    public Employee(String firstName, String lastName, String address,
+                    String employeeID, int annualLeave, int sickLeave) {
+        super(firstName, lastName, address);
+        this.employeeID = employeeID;
+        this.leaveManagement = new LeaveManagement(annualLeave, sickLeave);
+    }
+
+    public String getEmployeeID() { return employeeID; }
+    public LeaveManagement getLeaveManagement() { return leaveManagement; }
+    public void setEmployeeID(String employeeID) { this.employeeID = employeeID; }
+
+    // For demonstration, request 5 days of annual leave.
+    @Override
+    public String requestLeave() {
+        boolean approved = leaveManagement.requestLeave("Annual", 5, getFirstName() + " " + getLastName());
+        return getFirstName() + " " + getLastName() +
+               " (Employee) leave request " + (approved ? "approved" : "denied") +
+               " for 5 days.\n";
+    }
+
+    @Override
+    public void displayInfo(StringBuilder sb) {
+        super.displayInfo(sb);
+        sb.append("Employee ID: " + employeeID + "\n");
+    }
+}
+
+// Payroll class that calculates payroll and returns a report string.
+class Payroll {
+    public static String calculatePayroll(Employee employee) {
+        double baseSalary = 50000;
+        // For demonstration, each day of remaining annual leave deducts $50.
+        double deduction = employee.getLeaveManagement().getAnnualLeaveBalance() * 50;
+        double finalSalary = baseSalary - deduction;
+        StringBuilder sb = new StringBuilder();
+        sb.append("Payroll Report for " + employee.getFirstName() + " " + employee.getLastName() + ":\n");
+        sb.append("Base Salary: $50,000\n");
+        sb.append("Deductions: $" + deduction + "\n");
+        sb.append("Final Salary: $" + finalSalary + "\n");
+        return sb.toString();
+    }
+}
+
+// TimeLogging class for logging worked hours.
+class TimeLogging {
+    public static String logTime(Employee employee, int hoursWorked) {
+        return employee.getFirstName() + " " + employee.getLastName() +
+               " worked " + hoursWorked + " hours this week.\n";
+    }
+}
+
+/**
+ * =====================
+ *   CLASSIC LOGIN DIALOG
+ * =====================
+ */
+class LoginDialog extends JDialog {
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private boolean succeeded;
+
+    public LoginDialog(Frame parent) {
+        super(parent, "Login", true);
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.insets = new Insets(5, 5, 5, 5);
+
+        // Username label and field
+        constraints.gridx = 0; 
+        constraints.gridy = 0;
+        panel.add(new JLabel("Username:"), constraints);
+        constraints.gridx = 1;
+        usernameField = new JTextField(20);
+        panel.add(usernameField, constraints);
+
+        // Password label and field
+        constraints.gridx = 0; 
+        constraints.gridy = 1;
+        panel.add(new JLabel("Password:"), constraints);
+        constraints.gridx = 1;
+        passwordField = new JPasswordField(20);
+        panel.add(passwordField, constraints);
+
+        // Create Login and Cancel buttons
+        JButton loginButton = new JButton("Login");
+        JButton cancelButton = new JButton("Cancel");
+
+        // Panel for buttons
+        JPanel bp = new JPanel();
+        bp.add(loginButton);
+        bp.add(cancelButton);
+
+        // Action for Login button
+        loginButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                if (authenticate(getUsername(), getPassword())) {
+                    succeeded = true;
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(LoginDialog.this,
+                            "Invalid username or password",
+                            "Login",
+                            JOptionPane.ERROR_MESSAGE);
+                    usernameField.setText("");
+                    passwordField.setText("");
+                    succeeded = false;
+                }
+            }
+        });
+
+        // Action for Cancel button
+        cancelButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                succeeded = false;
+                dispose();
+            }
+        });
+
+        getContentPane().add(panel, BorderLayout.CENTER);
+        getContentPane().add(bp, BorderLayout.PAGE_END);
+
+        pack();
+        setResizable(false);
+        setLocationRelativeTo(parent);
+    }
+
+    public String getUsername() { return usernameField.getText().trim(); }
+    public String getPassword() { return new String(passwordField.getPassword()); }
+    public boolean isSucceeded() { return succeeded; }
+
+    // Replace with real authentication logic as needed.
+    private boolean authenticate(String username, String password) {
+        return "admin".equals(username) && "password".equals(password);
+    }
+}
+
+/**
+ * =====================
+ *   CONSOLE MAIN (ORIGINAL)
+ * =====================
+ */
+class Ms2payrollsystem {
+    public static void main(String[] args) {
+        // Creating some sample persons for console demonstration
+        PersonClass person1 = new Employee("Manuel", "Garcia", "Valero Carpark Building, Makati", "EMP001", 20, 10);
+        PersonClass person2 = new Employee("Maria", "Santos", "Ayala Tower, Makati", "EMP002", 15, 5);
+
+        System.out.println("\n==== Employee Details ====");
+        person1.displayInfo();
+        System.out.println(person1.requestLeave());
+        System.out.println();
+
+        System.out.println("==== Employee Details ====");
+        person2.displayInfo();
+        System.out.println(person2.requestLeave());
+        System.out.println();
+
+        System.out.println("==== Payroll Report ====");
+        System.out.println(Payroll.calculatePayroll((Employee) person1));
+        System.out.println(TimeLogging.logTime((Employee) person1, 40));
+
+        System.out.println("==== Leave Audit Report ====");
+        System.out.println(LeaveAudit.generateAuditReport());
+    }
+}
+
+/**
+ * =====================
+ *   MAIN GUI CLASS
+ * =====================
+ */
+public class Ms2PayrollGUI extends JFrame {
+
+    private JTextField firstNameField;
+    private JTextField lastNameField;
+    private JTextField addressField;
+    private JTextField employeeIdField;
+    private JTextField annualLeaveField;
+    private JTextField sickLeaveField;
+    private JTextArea outputLog;
+
+    private List<Employee> employeeList;
+
+    public Ms2PayrollGUI() {
+        super("MS2 Payroll System - GUI");
+
+        employeeList = new ArrayList<>();
+
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(700, 500);
+        setLocationRelativeTo(null);
+        setLayout(new BorderLayout(10, 10));
+
+        add(createFormPanel(), BorderLayout.NORTH);
+        add(createButtonPanel(), BorderLayout.CENTER);
+        add(createLogPanel(), BorderLayout.SOUTH);
+
+        ((JPanel) getContentPane()).setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    }
+
+    // Create the top panel with employee input fields.
+    private JPanel createFormPanel() {
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // First Name
+        gbc.gridx = 0; gbc.gridy = 0;
+        formPanel.add(new JLabel("First Name:"), gbc);
+        gbc.gridx = 1;
+        firstNameField = new JTextField(12);
+        formPanel.add(firstNameField, gbc);
+
+        // Last Name
+        gbc.gridx = 0; gbc.gridy = 1;
+        formPanel.add(new JLabel("Last Name:"), gbc);
+        gbc.gridx = 1;
+        lastNameField = new JTextField(12);
+        formPanel.add(lastNameField, gbc);
+
+        // Address
+        gbc.gridx = 0; gbc.gridy = 2;
+        formPanel.add(new JLabel("Address:"), gbc);
+        gbc.gridx = 1;
+        addressField = new JTextField(12);
+        formPanel.add(addressField, gbc);
+
+        // Employee ID
+        gbc.gridx = 0; gbc.gridy = 3;
+        formPanel.add(new JLabel("Employee ID:"), gbc);
+        gbc.gridx = 1;
+        employeeIdField = new JTextField(12);
+        formPanel.add(employeeIdField, gbc);
+
+        // Annual Leave
+        gbc.gridx = 0; gbc.gridy = 4;
+        formPanel.add(new JLabel("Annual Leave:"), gbc);
+        gbc.gridx = 1;
+        annualLeaveField = new JTextField(12);
+        formPanel.add(annualLeaveField, gbc);
+
+        // Sick Leave
+        gbc.gridx = 0; gbc.gridy = 5;
+        formPanel.add(new JLabel("Sick Leave:"), gbc);
+        gbc.gridx = 1;
+        sickLeaveField = new JTextField(12);
+        formPanel.add(sickLeaveField, gbc);
+
+        return formPanel;
+    }
+
+    // Create the middle panel with action buttons.
+    private JPanel createButtonPanel() {
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        JButton addEmployeeButton = new JButton("Add Employee");
+        JButton requestLeaveButton = new JButton("Request Leave");
+        JButton viewPayrollButton = new JButton("View Payroll");
+        JButton auditReportButton = new JButton("Audit Report");
+
+        addEmployeeButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                handleAddEmployee();
+            }
+        });
+
+        requestLeaveButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                handleRequestLeave();
+            }
+        });
+
+        viewPayrollButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                handleViewPayroll();
+            }
+        });
+
+        auditReportButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                handleAuditReport();
+            }
+        });
+
+        buttonPanel.add(addEmployeeButton);
+        buttonPanel.add(requestLeaveButton);
+        buttonPanel.add(viewPayrollButton);
+        buttonPanel.add(auditReportButton);
+
+        return buttonPanel;
+    }
+
+    // Create the bottom panel with a text area for logs.
+    private JPanel createLogPanel() {
+        JPanel logPanel = new JPanel(new BorderLayout());
+        JLabel logLabel = new JLabel("Output Log:");
+        logPanel.add(logLabel, BorderLayout.NORTH);
+        outputLog = new JTextArea(10, 50);
+        outputLog.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(outputLog);
+        logPanel.add(scrollPane, BorderLayout.CENTER);
+        return logPanel;
+    }
+
+    // Handler for adding an employee.
+    private void handleAddEmployee() {
+        String fName = firstNameField.getText().trim();
+        String lName = lastNameField.getText().trim();
+        String addr  = addressField.getText().trim();
+        String empId = employeeIdField.getText().trim();
+        String annualStr = annualLeaveField.getText().trim();
+        String sickStr = sickLeaveField.getText().trim();
+
+        if (fName.isEmpty() || lName.isEmpty() || addr.isEmpty() || empId.isEmpty() ||
+            annualStr.isEmpty() || sickStr.isEmpty()) {
+            outputLog.append("Error: Please fill in all fields.\n");
+            return;
+        }
+
+        int annualLeave, sickLeave;
+        try {
+            annualLeave = Integer.parseInt(annualStr);
+            sickLeave = Integer.parseInt(sickStr);
+        } catch (NumberFormatException ex) {
+            outputLog.append("Error: Annual and Sick leave must be numeric.\n");
+            return;
+        }
+
+        Employee emp = new Employee(fName, lName, addr, empId, annualLeave, sickLeave);
+        employeeList.add(emp);
+
+        outputLog.append("Added Employee: " + fName + " " + lName + " (ID: " + empId + ")\n");
+
+        // Clear the fields
+        firstNameField.setText("");
+        lastNameField.setText("");
+        addressField.setText("");
+        employeeIdField.setText("");
+        annualLeaveField.setText("");
+        sickLeaveField.setText("");
+    }
+
+    // Handler for requesting leave.
+    private void handleRequestLeave() {
+        if (employeeList.isEmpty()) {
+            outputLog.append("No employees to request leave for.\n");
+            return;
+        }
+        Employee lastEmp = employeeList.get(employeeList.size() - 1);
+        String result = lastEmp.requestLeave();
+        outputLog.append(result);
+    }
+
+    // Handler for viewing payroll.
+    private void handleViewPayroll() {
+        if (employeeList.isEmpty()) {
+            outputLog.append("No employees to view payroll.\n");
+            return;
+        }
+        Employee lastEmp = employeeList.get(employeeList.size() - 1);
+        String payrollReport = Payroll.calculatePayroll(lastEmp);
+        String timeLog = TimeLogging.logTime(lastEmp, 40); // assume 40 hours worked
+        outputLog.append("\n" + payrollReport);
+        outputLog.append(timeLog);
+    }
+
+    // Handler for displaying the audit report.
+    private void handleAuditReport() {
+        String report = LeaveAudit.generateAuditReport();
+        outputLog.append("\n" + report);
+    }
+
+    /**
+     * Main method: first displays a classic login dialog.
+     * If authentication is successful, launches the main payroll GUI.
+     */
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                LoginDialog loginDlg = new LoginDialog(null);
+                loginDlg.setVisible(true);
+                if (loginDlg.isSucceeded()) {
+                    Ms2PayrollGUI gui = new Ms2PayrollGUI();
+                    gui.setVisible(true);
+                } else {
+                    System.exit(0);
+                }
+            }
+        });
+    }
+}
+
